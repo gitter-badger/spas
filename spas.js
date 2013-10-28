@@ -1,29 +1,5 @@
 /*
 
-The MIT License (MIT)
-Copyright (c) 2012 Donovan Buck
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this
-software and associated documentation files (the "Software"), to deal in the Software
-without restriction, including without limitation the rights to use, copy, modify,
-merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice shall be included in all copies
-or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
-OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-*/
-
-/*
-
 Command line parameters
 
 	## Logging
@@ -38,7 +14,7 @@ Command line parameters
 		info - Adds program flow (function calls, enqueued jobs, etc)
 		debug - Adds all datapoints other than API responses and bundles
 		verbose - Adds everything (API Responses, conmpleted bundles, etc).
-		input - Adds all requests and parameters
+		input - Adds all requests and passed parameters
 
 
 	##  Environment
@@ -130,24 +106,37 @@ if (GLOBAL.config.args.service) {
 		// These are the return routes for authentication services
 		'/oauth': {
 			get: function() {
-				var nonce = querystring.parse((url.parse(this.req.url).query)).oauth_nonce;
+				var oauth_token = querystring.parse((url.parse(this.req.url).query)).oauth_token;
 				
-				if (!_.isUndefined(nonce)) {
+				//winston.info('oauth callback for ' + nonce + ' running');
+				winston.debug('Query parameters:' + JSON.stringify(querystring.parse((url.parse(this.req.url).query))));
+				
+				if (!_.isUndefined(oauth_token) && !_.isUndefined(this.req.headers.cookie)) {
 					
-					var nonceArray = nonce.split(","),
-					bid = nonceArray[0],
-					key = nonceArray[1],
-					self = this;
+					var self = this,
+						cookies = {},
+						tempCookies = this.req.headers.cookie.split(';');
+					
+					_.each(tempCookies, function(cookie, index) {
+						cookie = cookie.split('=');
+						cookies[cookie[0].trim()] = cookie[1].trim();
+					});
+					
+					var bidkey = GLOBAL.config.guids[cookies.authCode].split(',');
+					
+					var bid = bidkey[0],
+						key = bidkey[1];
 
-					oauth.saveOauthToken( GLOBAL.bundles[bid][key], querystring.parse((url.parse(this.req.url).query)).oauth_nonce, querystring.parse((url.parse(this.req.url).query)).oauth_token, function( tout ) {
+					oauth.saveOauthToken( GLOBAL.bundles[bid][key], querystring.parse((url.parse(this.req.url).query)).oauth_token, querystring.parse((url.parse(this.req.url).query)).oauth_verifier, bid, key, function( tout ) {
 	
 						if (_.has(tout, 'redirect')) {
 							self.res.statusCode = 302;
 							self.res.setHeader("Location", tout.redirect);
 							self.res.end();
+							
 						}
-					
 					});
+					
 				} else {
 					
 					this.res.writeHead(404);
