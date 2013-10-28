@@ -11,7 +11,6 @@ pids
 results
 node_modules
 
-bundles
 bundles/
 bundles/*
 !bundles/sample.js
@@ -23,4 +22,3 @@ config.json
 npm-debug.log
 .DS_Store
 config.json
-spasout*
